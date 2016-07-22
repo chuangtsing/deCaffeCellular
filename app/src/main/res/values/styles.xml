@@ -1,0 +1,12 @@
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <!--   your app branding color for the app bar -->
+        <item name="colorPrimary">#ffffff</item>
+        <item name="colorPrimaryDark">#909090</item>
+        <!--   theme UI controls like checkboxes and text fields -->
+        <item name="colorAccent">#ffc326</item>
+    </style>
+
+</resources>

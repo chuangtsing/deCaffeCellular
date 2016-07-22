@@ -1,0 +1,40 @@
+package vatest_proto;
+option java_package = "edu.psu.cse.vatest";
+
+message ServerMessage
+{
+	enum Type
+	{
+		CONNECT = 0;
+		VIDEO = 1;
+		RECEIVED = 2;
+		BATCH = 3;
+		DISCONNECT = 4;
+	}
+
+	required Type type = 1;
+	optional string path = 2;
+	repeated uint32 tags = 3;
+	optional uint32 batch = 4;
+	repeated uint64 size = 5;
+}
+
+message ClientMessage
+{
+	enum Type
+	{
+		CONNECT = 0;
+		VIDEO = 1;
+		FRAME = 2;
+		BATCH = 3;
+		UPLINK_TEST = 4;
+		DISCONNECT = 5;
+	}
+
+	required Type type = 1;
+	optional string path = 2;
+	repeated uint64 size = 3;
+	optional uint32 batch = 4;
+	optional uint32 top_k = 5;
+	optional bool received_response = 6;
+}

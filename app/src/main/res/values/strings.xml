@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">VATest</string>
+    <string name="package_name">edu.psu.cse.vadroid</string>
+
+    <string name="pref_directory">DIRECTORY</string>
+    <string name="title_activity_main">VATest</string>
+    <string name="select_mode">Select Mode</string>
+
+    <string-array name="mode">
+        <item>Offload Videos</item>
+        <item>Offload Frames</item>
+        <item>Local Processing</item>
+        <item>Optimized</item>
+    </string-array>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+
+</resources>

@@ -1,0 +1,334 @@
+package edu.psu.cse.vatest.processing;
+
+import android.net.ConnectivityManager;
+import android.util.Pair;
+
+import org.opencv.core.Mat;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Vector;
+import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+
+import edu.psu.cse.vatest.VANet;
+import edu.psu.cse.vatest.Video;
+import edu.psu.cse.vatest.optimization.CellularOnline;
+import edu.psu.cse.vatest.optimization.Solution;
+import edu.psu.cse.vatest.optimization.WiFiEnergy;
+import edu.psu.cse.vatest.optimization.WiFiOffline;
+
+public class Processor {
+
+    public enum OptMode {
+        WIFI, WIFI_ENERGY, CELLULAR;
+    }
+
+    private static CaffeMobile caffe;
+    private static int QUEUE_CAPACITY = 30;
+
+    private int speed;
+    private OptMode mode;
+    private int e_constraint;
+    private double d_constraint;
+    private boolean energyMode;
+    private VANet vanet;
+    private ArrayList<Pair<AsyncExtractor, Solution>> procList;
+    private ExecutorService sendService;
+    private int topK;
+    private Semaphore sem;
+
+    static {
+        caffe = new CaffeMobile();
+        //caffe.startInit();
+    }
+
+
+    public Processor(VANet vanet, boolean energyMode, int topK) {
+        this.vanet = vanet;
+        this.energyMode = energyMode;
+        this.topK = topK;
+        this.sendService = Executors.newSingleThreadExecutor();
+        this.sem = new Semaphore(30);
+    }
+
+    public void setEnergy(int e_constraint) {
+        this.e_constraint = e_constraint;
+    }
+
+    public void setData(double d_constraint) {
+        this.d_constraint = d_constraint;
+    }
+
+    public void process(List<Video> videos, double extractRate) {
+        if (vanet.getNetworkType() == ConnectivityManager.TYPE_WIFI)
+            wifi(videos, extractRate);
+        else
+            cellular(videos, extractRate);
+    }
+
+    private void wifi(List<Video> vids, double extractRate) {
+        //AbstractOffline offline;
+        ExecutorService extractService = Executors.newSingleThreadExecutor();
+        ExecutorService classifyService = Executors.newSingleThreadExecutor();
+        procList = new ArrayList<>();
+        double speed = vanet.getUplinkSpeed();
+        speed = 100;
+        caffe.startInit();
+
+        for (Video vid : vids) {
+            Extractor extractor = new Extractor(vid, sem);
+            AsyncExtractor asyncExtractor = new AsyncExtractor(extractor, vid);
+            double size = 100;
+            extractService.submit(asyncExtractor);
+            byte[] jpg = new byte[0];
+            try {
+                Mat first = asyncExtractor.extractQueue.takeFirst();
+                asyncExtractor.extractQueue.offerFirst(first);
+                sem.acquire();
+                jpg = Extractor.matToJpg(first);
+                size = (double) jpg.length / 1000;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            Solution sol;
+            if (energyMode) {
+                WiFiEnergy energy = new WiFiEnergy((double) vid.size / 1000, (double) vid.duration / 1000, extractRate, size, speed);
+                energy.setEnergyConstraint(e_constraint);
+                sol = energy.algorithm();
+            } else {
+                WiFiOffline offline = new WiFiOffline((double) vid.size / 1000, (double) vid.duration / 1000, extractRate, size, speed);
+                sol = offline.algorithm();
+            }
+
+            if (sol.mode == 0) {
+                sendService.submit(vanet.newAsyncSender(VANet.UploadTask.VIDEO, vid));
+            } else {
+                procList.add(new Pair(asyncExtractor, sol));
+            }
+        }
+
+        for (Pair<AsyncExtractor, Solution> proc : procList) {
+            proc.first.extractor.continueExtraction();
+        }
+
+        for (Pair<AsyncExtractor, Solution> proc : procList) {
+            BlockingDeque<Mat> extractQueue = proc.first.getExtractQueue();
+            Video vid = proc.first.getVideo();
+            Extractor extractor = proc.first.getExtractor();
+            Solution sol = proc.second;
+            AsyncClassifier classifier = new AsyncClassifier(vid);
+            BlockingQueue<Pair<ProcessMessage, ArrayList<Mat>>> classifyQueue = classifier.getQueue();
+            classifyService.submit(classifier);
+
+            // Offload all to server if Caffe initialization not finished
+            while (!caffe.isInit() && !(extractor.getFinished() && extractQueue.isEmpty())) {
+                try {
+                    byte[] arr = Extractor.matToJpg(extractQueue.takeFirst());
+                    vanet.sendFrame(vid, arr);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+
+            int i = 0;
+            while (!(extractor.getFinished() && extractQueue.isEmpty())) {
+                int batch = 0;
+                if (i < sol.batches.size())
+                    batch = sol.batches.get(i);
+
+                if (batch > 0 && extractQueue.size() >= batch) {
+                    try {
+                        // Generate list of mats
+                        ArrayList<Mat> mats = new ArrayList<>(batch);
+                        for (int j = 0; j < batch; j++) {
+                            mats.add(extractQueue.takeFirst());
+                            sem.release();
+                        }
+                        // Add to classify queue
+                        classifyQueue.put(new Pair(ProcessMessage.FRAME, mats));
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+                    // Next batch
+                    i++;
+                } else {
+                    try {
+                        byte[] jpg = Extractor.matToJpg(extractQueue.takeFirst());
+                        sem.release();
+                        sendService.submit(vanet.newAsyncSender(vid, jpg));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+            // Close classifier
+            try {
+                classifyQueue.put(new Pair(ProcessMessage.FINISH, null));
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+        }
+        extractService.shutdown();
+        classifyService.shutdown();
+        sendService.shutdown();
+        try {
+            extractService.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
+            classifyService.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
+            sendService.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    private void cellular(List<Video> vids, double extractRate) {
+        ExecutorService extractService = Executors.newSingleThreadExecutor();
+        ExecutorService classifyService = Executors.newSingleThreadExecutor();
+        procList = new ArrayList<>();
+        double speed = vanet.getUplinkSpeed();
+        caffe.startInit();
+
+        for (Video vid : vids) {
+            double size = 100;
+            Extractor extractor = new Extractor(vid, sem);
+            AsyncExtractor asyncExtractor = new AsyncExtractor(extractor, vid);
+            extractService.submit(asyncExtractor);
+            BlockingDeque<Mat> extractQueue = asyncExtractor.getExtractQueue();
+            byte[] jpg = new byte[0];
+            try {
+                Mat first = extractQueue.takeFirst();
+                jpg = Extractor.matToJpg(first);
+                size = (double) jpg.length / 1000;
+                extractQueue.putFirst(first);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            CellularOnline online = new CellularOnline((double) vid.duration / 1000, extractRate, size, d_constraint);
+            int frames = (int) ((vid.duration / 1000) * extractRate);
+            long tStart = System.nanoTime();
+
+
+            int rem = 0;
+
+            for (int i = 1; i < frames; i++) {
+
+                if (rem == 0) {
+
+                }
+            }
+        }
+    }
+
+
+    class AsyncExtractor implements Callable<Void> {
+
+        private Video vid;
+        private Extractor extractor;
+        private BlockingDeque<Mat> extractQueue;
+
+        public AsyncExtractor(Extractor extractor, Video vid) {
+            this.vid = vid;
+            this.extractor = extractor;
+            this.extractQueue = new LinkedBlockingDeque<>(QUEUE_CAPACITY);
+        }
+
+        @Override
+        public Void call() throws Exception {
+            try {
+                extractor.doExtract(extractQueue);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+        public BlockingDeque<Mat> getExtractQueue() {
+            return extractQueue;
+        }
+
+        public Extractor getExtractor() {
+            return extractor;
+        }
+
+        public Video getVideo() {
+            return vid;
+        }
+    }
+
+    class AsyncClassifier implements Callable<Void> {
+        private Video vid;
+        private Vector<Mat> vec;
+        private BlockingQueue<Pair<ProcessMessage, ArrayList<Mat>>> queue;
+
+        public AsyncClassifier(Video vid) {
+            //caffe.startInit();
+            this.vid = vid;
+            vec = new Vector<>();
+            this.queue = new LinkedBlockingQueue<>();
+        }
+
+        @Override
+        public Void call() throws Exception {
+            if (caffe.getInit()) {
+                //Notifier.endCaffeInit();
+                return null;
+            }
+            Pair<ProcessMessage, ArrayList<Mat>> pair;
+            while (true) {
+                pair = queue.take();
+                if (pair.first == ProcessMessage.FINISH) {
+                    //finished = true;
+                    break;
+                } else if (pair.first == ProcessMessage.FRAME) {
+                    if (!caffe.getInit()) {
+                        // Notifier.endCaffeInit();
+                        return null;
+                    }
+                    //Notifier.endCaffeInit();
+                    ArrayList<Mat> mats = pair.second;
+                    long[] arr = new long[mats.size()];
+                    for (int i = 0; i < mats.size(); i++) {
+                        arr[i] = mats.get(i).getNativeObjAddr();
+                    }
+                    int[] top = caffe.predictImageMatArray(arr, topK);
+                    sendService.submit(vanet.newAsyncSender(vid, top, mats.size()));
+                }
+            }
+
+            //queuedFrames.release(vec.size());
+            return null;
+        }
+
+        public BlockingQueue<Pair<ProcessMessage, ArrayList<Mat>>> getQueue() {
+            return this.queue;
+        }
+
+    }
+}
+
+enum ProcessMessage {
+    FRAME,
+    FINISH;
+}
+
+enum ProcessMode {
+    EXTRACT_ONLY,
+    EXTRACT_AND_CLASSIFY;
+}
+

@@ -1,0 +1,62 @@
+package edu.psu.cse.vatest.optimization;
+
+import java.util.Collection;
+import java.util.HashMap;
+
+import edu.psu.cse.vatest.Video;
+
+/**
+ * Created by Zack on 11/16/15.
+ */
+public class Optimizer {
+    public enum ProcessMode {
+        EXTRACT_ONLY,
+        EXTRACT_AND_CLASSIFY,
+        SEND_VIDEO;
+    }
+
+
+    private HashMap<String, VidProc> vids;
+    private boolean online;
+
+    public Optimizer (Collection<Video> vids, boolean online) {
+        this.vids = new HashMap(vids.size());
+        this.online = online;
+        for (Video vid : vids) {
+            this.vids.put(vid.path, new VidProc(vid));
+        }
+    }
+
+    public void init() {
+
+    }
+
+    public int optimize() {
+        if (online)
+            offlineOptimize();
+        else
+            return onlineOptimize();
+
+        return 0;
+    }
+
+    private Solution offlineOptimize(boolean energy) {
+
+    }
+
+    private int onlineOptimize() {
+        return 0;
+    }
+
+    private class VidProc {
+        public Video vid;
+        // public ArrayList<Pair<ProcessMode, Boolean>> frames; // Pair of process mode and finished boolean
+        public int currentFrame;
+
+        public VidProc(Video vid) {
+            this.vid = vid;
+            //if (Online)
+                //frames = new ArrayList<>(vid.totalFrames);
+        }
+    }
+}

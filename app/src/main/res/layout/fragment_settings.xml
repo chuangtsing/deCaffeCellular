@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context="edu.psu.cse.vatest.SettingsFragment">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:text="Video directory:"
+        android:id="@+id/textView"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="10dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:id="@+id/txtDir"
+        android:layout_below="@+id/textView"
+        android:layout_centerHorizontal="true"
+        android:text="directory" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Select Directory"
+        android:id="@+id/btnSelect"
+        android:layout_below="@+id/txtDir"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="5dp" />
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="numberDecimal"
+        android:ems="6"
+        android:id="@+id/txtExtract"
+        android:layout_centerVertical="true"
+        android:layout_centerHorizontal="true"
+        android:layout_below="@id/btnSelect"
+        android:layout_marginTop="10dp"
+        android:hint="Extraction rate"
+        android:text="1" />
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="numberDecimal"
+        android:ems="6"
+        android:id="@+id/txtK"
+        android:layout_centerVertical="true"
+        android:layout_centerHorizontal="true"
+        android:layout_below="@id/txtExtract"
+        android:layout_marginTop="10dp"
+        android:hint="Extraction rate"
+        android:text="5" />
+
+    <Spinner
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:entries="@array/mode"
+        android:prompt="@string/select_mode"
+        android:id="@+id/spinnerType"
+        android:layout_below="@+id/txtWidth"
+        android:layout_alignParentEnd="true"
+        android:layout_marginTop="10dp"
+        android:gravity="center_horizontal" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:text="X"
+        android:id="@+id/txtX"
+        android:layout_below="@+id/txtK"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="15dp"/>
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="number"
+        android:ems="4"
+        android:id="@+id/txtWidth"
+        android:layout_toLeftOf="@id/txtX"
+        android:layout_below="@+id/txtK"
+        android:hint="Width"
+        android:text="1920" />
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="number"
+        android:ems="4"
+        android:id="@+id/txtHeight"
+        android:layout_toRightOf="@id/txtX"
+        android:layout_below="@id/txtK"
+        android:hint="Height"
+        android:text="1080" />
+
+    <Switch
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Eneregy"
+        android:id="@+id/switchEnergy"
+        android:checked="false"
+        android:layout_marginTop="10dp"
+        android:layout_below="@+id/spinnerType"
+        android:layout_toStartOf="@+id/txtEnergy" />
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="number"
+        android:ems="10"
+        android:id="@+id/txtEnergy"
+        android:hint="Energy Constraint"
+        android:layout_alignBottom="@+id/switchEnergy"
+        android:layout_alignEnd="@+id/spinnerType"
+        android:text="50" />
+
+    <Switch
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Data"
+        android:id="@+id/switchData"
+        android:layout_below="@+id/switchEnergy"
+        android:layout_marginTop="10dp"
+        android:layout_alignStart="@+id/switchEnergy"
+        android:hint="Data"
+        android:checked="false" />
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:inputType="number"
+        android:ems="10"
+        android:id="@+id/txtData"
+        android:layout_toEndOf="@+id/switchEnergy"
+        android:layout_alignBottom="@id/switchData"
+        android:hint="Data Constraint"
+        android:text="700" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:text="Extraction Rate:"
+        android:id="@+id/textView2"
+        android:layout_alignBaseline="@+id/txtExtract"
+        android:layout_toStartOf="@+id/txtExtract"
+        android:layout_marginRight="5dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:text="Top K:"
+        android:id="@+id/textView3"
+        android:layout_alignBaseline="@+id/txtK"
+        android:layout_toStartOf="@+id/txtK"
+        android:layout_marginRight="5dp"/>
+
+    <RadioGroup xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_centerHorizontal="true"
+        android:layout_below="@+id/switchData"
+        android:layout_marginTop="10dp"
+        android:checkedButton="0"
+        android:id="@+id/radioGroup">
+
+        <RadioButton android:id="@+id/radioWifi"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="WiFi"/>
+        <RadioButton android:id="@+id/radioCell"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cellular"/>
+
+    </RadioGroup>
+
+    <Switch
+        android:layout_marginTop="5dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Current"
+        android:id="@+id/switchCurrent"
+        android:layout_below="@+id/radioGroup"
+        android:layout_centerHorizontal="true" />
+
+</RelativeLayout>
